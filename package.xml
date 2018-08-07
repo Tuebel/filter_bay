@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>filter_bay</name>
+  <version>0.0.1</version>
+  <description>
+  A small filter library for BAYesian filtering. It does not try to be an
+  "Eierlegende Wollmilchsau" as it accepts that the filter models are just
+  too different. So instead of dependency injection nightmares or template
+  metaprogramming hell a few simple filters are provided, each with its own
+  data representation.
+  </description>
+  <maintainer email="tim.uebelhoer@rwth-aachen.de">Tim Übelhör</maintainer>
+  <license>MIT</license>
+  <author email="tim.uebelhoer@rwth-aachen.de">Tim Übelhör</author>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <test_depend>GTest</test_depend>
+  <doc_depend>doxygen</doc_depend>
+  <build_depend>eigen</build_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
