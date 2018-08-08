@@ -13,15 +13,14 @@ This means the state transition equation is
 \f]
 and the Matrix \f$G\f$ must be provided additionally to the common matrices.
 The process noise \f%z_k\f$ must be provided at each prediction step.
-
 */
-template <size_t stateSize, size_t inputSize, size_t processNoiseSize,
-          size_t observationSize>
+template <size_t state_size, size_t input_size, size_t process_noise_size,
+          size_t observation_size>
 class KalmanFilter
 {
 public:
-  using ObservationModel = typename filter_bay::GaussianObservationModel<stateSize, observationSize>;
-  using TransitionModel = typename filter_bay::LinearTransitionModel<stateSize, inputSize, processNoiseSize>;
+  using ObservationModel = typename filter_bay::GaussianObservationModel<state_size, observation_size>;
+  using TransitionModel = typename filter_bay::LinearTransitionModel<state_size, input_size, process_noise_size>;
   using State = typename TransitionModel::State;
   using Covariance = typename TransitionModel::StateCovariance;
   using Input = typename TransitionModel::Input;

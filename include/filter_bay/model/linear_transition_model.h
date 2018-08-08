@@ -22,23 +22,23 @@ The noise *\f$w_k\f$ is described via its covariance *\f$Q_k\f$.
 See https://en.wikipedia.org/wiki/Kalman_filter#Example_application,_technical
 for an example how \f$G\f% might be introduced into the state equation.
 */
-template <size_t stateSize, size_t inputSize, size_t noiseSize>
+template <size_t state_size, size_t input_size, size_t noise_size>
 struct LinearTransitionModel
 {
   /*! \f$F\f$ */
-  using TransitionMatrix = Eigen::Matrix<double, stateSize, stateSize>;
+  using TransitionMatrix = Eigen::Matrix<double, state_size, state_size>;
   /*! \f$B\f$ */
-  using InputMatrix = Eigen::Matrix<double, stateSize, inputSize>;
+  using InputMatrix = Eigen::Matrix<double, state_size, input_size>;
   /*! \f$G\f$ */
-  using NoiseMatrix = Eigen::Matrix<double, stateSize, noiseSize>;
+  using NoiseMatrix = Eigen::Matrix<double, state_size, noise_size>;
   /*! \f$x_k\f$ */
-  using State = Eigen::Matrix<double, stateSize, 1>;
+  using State = Eigen::Matrix<double, state_size, 1>;
   /*! \f$U_k\f$ */
-  using Input = Eigen::Matrix<double, inputSize, 1>;
+  using Input = Eigen::Matrix<double, input_size, 1>;
   /*! \f$P_k\f$ */
-  using StateCovariance = Eigen::Matrix<double, stateSize, stateSize>;
+  using StateCovariance = Eigen::Matrix<double, state_size, state_size>;
   /*! \f$Q_k\f$ */
-  using NoiseCovariance = Eigen::Matrix<double, noiseSize, noiseSize>;
+  using NoiseCovariance = Eigen::Matrix<double, noise_size, noise_size>;
 
   /*! Transition matrix of the model. */
   TransitionMatrix F;

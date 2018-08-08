@@ -15,21 +15,21 @@ The measurement noise is assumed to be a constant white noise.
 
 See https://en.wikipedia.org/wiki/Kalman_filter#Update for further explanation.
 */
-template <size_t stateSize, size_t observationSize>
+template <size_t state_size, size_t observation_size>
 struct GaussianObservationModel
 {
   /*! \f$x_k\f$ */
-  using State = typename Eigen::Matrix<double, stateSize, 1>;
+  using State = typename Eigen::Matrix<double, state_size, 1>;
   /*! \f$P_k\f$ */
-  using StateCovariance = typename Eigen::Matrix<double, stateSize, stateSize>;
+  using StateCovariance = typename Eigen::Matrix<double, state_size, state_size>;
   /*! \f$y_k\f$ */
-  using Observation = typename Eigen::Matrix<double, observationSize, 1>;
+  using Observation = typename Eigen::Matrix<double, observation_size, 1>;
   /*! \f$H\f$ */
-  using ObservationMatrix = typename Eigen::Matrix<double, observationSize, stateSize>;
+  using ObservationMatrix = typename Eigen::Matrix<double, observation_size, state_size>;
   /*! \f$R\f$ */
-  using NoiseCovariance = typename Eigen::Matrix<double, observationSize, observationSize>;
+  using NoiseCovariance = typename Eigen::Matrix<double, observation_size, observation_size>;
   /*! \f$K\f$ */
-  using KalmanGain = typename Eigen::Matrix<double, stateSize, observationSize>;
+  using KalmanGain = typename Eigen::Matrix<double, state_size, observation_size>;
 
   /*! Observatin matrix of the state */
   ObservationMatrix H;
@@ -57,8 +57,8 @@ struct GaussianObservationModel
   KalmanGain calculate_gain(const StateCovariance &P) const
   {
     // Calculate P * H^T only once
-    Eigen::Matrix<double, stateSize, observationSize> PH_T = P * H.transpose();
-    Eigen::Matrix<double, observationSize, observationSize> S = R + H * PH_T;
+    Eigen::Matrix<double, state_size, observation_size> PH_T = P * H.transpose();
+    Eigen::Matrix<double, observation_size, observation_size> S = R + H * PH_T;
     return PH_T * S.inverse();
   }
 
