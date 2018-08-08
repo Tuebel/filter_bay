@@ -1,5 +1,5 @@
 #pragma once
-#include <filter_bay/kalman_filter/kalman_filter.h>
+#include <filter_bay/kalman_filter/kalman_filter.hpp>
 #include <math.h>
 
 namespace filter_bay

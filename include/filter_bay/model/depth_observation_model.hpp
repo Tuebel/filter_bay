@@ -1,5 +1,5 @@
 #pragma once
-#include <filter_bay/model/movement_state.h>
+#include <filter_bay/model/movement_state.hpp>
 
 namespace filter_bay
 {

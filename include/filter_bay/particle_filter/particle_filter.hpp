@@ -1,8 +1,8 @@
 #pragma once
-#include <filter_bay/model/linear_transition_model.h>
-#include <filter_bay/model/depth_observation_model.h>
-#include <filter_bay/particle_filter/particle.h>
-#include <filter_bay/utility/normal_sampler.h>
+#include <filter_bay/model/linear_transition_model.hpp>
+#include <filter_bay/model/depth_observation_model.hpp>
+#include <filter_bay/particle_filter/particle.hpp>
+#include <filter_bay/utility/normal_sampler.hpp>
 
 namespace filter_bay
 {

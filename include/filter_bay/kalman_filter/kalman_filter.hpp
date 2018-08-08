@@ -1,6 +1,6 @@
 #pragma once
-#include <filter_bay/model/linear_transition_model.h>
-#include <filter_bay/model/gaussian_observation_model.h>
+#include <filter_bay/model/linear_transition_model.hpp>
+#include <filter_bay/model/gaussian_observation_model.hpp>
 
 namespace filter_bay
 {
