@@ -1,65 +1,128 @@
 #pragma once
-#include <filter_bay/model/linear_transition_model.hpp>
-#include <filter_bay/model/depth_observation_model.hpp>
-#include <filter_bay/particle_filter/particle.hpp>
-#include <filter_bay/utility/normal_sampler.hpp>
+#include <filter_bay/particle_filter/particle_model.hpp>
+#include <filter_bay/utility/uniform_random.hpp>
 
 namespace filter_bay
 {
 /*!
 Simple implementation of a particle filter which uses a 
 */
-template <size_t stateSize, size_t inputSize, size_t processNoiseSize,
-          size_t observationHeight, size_t observationWidth>
-class DepthParticleFilter
+template <size_t particle_count, typename StateType, typename InputType,
+          typename ObservationType>
+class ParticleFilter
 {
 public:
-  using ObservationModel = typename filter_bay::DepthObservationModel<observationHeight, observationWidth, DOF>;
-  using TransitionModel = typename filter_bay::LinearTransitionModel<stateSize, inputSize, processNoiseSize>;
-  using State = typename TransitionModel::State;
-  using Input = typename TransitionModel::Input;
-  using ProcessNoise = typename TransitionModel::NoiseCovariance;
-  using Observation = typename ObservationModel::Observation;
+  using Model = typename filter_bay::ParticleModel<StateType, InputType, ObservationType>;
+  using Sample = typename filter_bay::Particle<StateType>;
+  using Belief = typename std::array<Sample, particle_count>;
 
-  DepthParticleFilter() : random_device(),
-                          normal_sampler(random_device())
+  ParticleFilter(Model particle_model)
+      : model(std::move(particle_model))
   {
   }
 
-  /*! Linear 6DOF transition model */
-  TransitionModel transition_model;
-
   /*!
-  Calculates the prediction for every particle.
-  \param u the control input
-  \param Q the process noise
+  Set the initial belief. Makes sure that the initial weights are distributed
+  uniformally.
   */
-  void predict(const Input &u, const ProcessNoise &Q)
+  void initialize(Belief initial_belief)
   {
-    // Calculate the process noise once
-    auto covariance = Eigen::Matrix<double, stateSize, stateSize>::Zero();
-    covariance = transition_model.predict_covariance(covariance, Q);
-    // Empty matrix
-    for (size_t i = 0; i < particles.size(); i++)
+    belief = std::move(initial_belief);
+    double avg_weight = (double)1.0 / belief.size();
+    for (Sample &sample : belief)
     {
-      // Predict the state
-      particles[i].state = transition_model.predict_state(particles[i].state,
-                                                          u);
-      // Apply the noise
-      particles[i].state = normal_sampler.sample_robust(particles[i].state,
-                                                        covariance);
+      sample.weight = avg_weight;
     }
   }
 
-  void update(const Observation &observation)
+  /*!
+  Calculates the prediction for every particle without updating the weights.
+  \param u the control input
+  */
+  void predict(const InputType &u)
   {
+    for (Sample &sample : belief)
+    {
+      sample.state = model.predict(sample.state, u);
+    }
+  }
+
+  /*!
+  Updates the particle weights by incorporating the observation.
+  The update step is done in a SIR bootstrap filter fashion.
+  Resampling is performed with the low variance resampling method.
+  \param z the current observation
+  \param resample_threshold threshold of the effective sample size(ESS). 
+  Resampling is performed if ESS < resample_threshold. N/2 is a typical value. 
+  */
+  void update(const ObservationType &z,
+              size_t resample_threshold = particle_count / 2)
+  {
+    double weight_sum = 0;
+    // weights as posterior of observation
+    for (auto &sample : belief)
+    {
+      // Using the prior as proposal so the weight recursion is simply:
+      sample.weight = sample.weight *
+                      model.likelihood(sample.state, z);
+      weight_sum += sample.weight;
+    }
+    // Normalize weights
+    double normalize_const = 1 / weight_sum;
+    double square_sum = 0;
+    for (auto &sample : belief)
+    {
+      sample.weight = normalize_const * sample.weight;
+      square_sum += sample.weight * sample.weight;
+    }
+    // Perform resampling?
+    if (1 / square_sum < resample_threshold)
+    {
+      belief = resample_low_var(belief);
+    }
+  }
+
+  /*!
+  Sampling systematically and thus keeping the sample variance lower than pure
+  random sampling. It is also faster O(m) instead of O(m logm)
+  */
+  Belief resample_low_var(const Belief &old_belief)
+  {
+    Belief new_belief;
+    if (old_belief.size() == 0)
+    {
+      return new_belief;
+    }
+    double avg_weight = 1.0 / belief.size();
+    double r = uniform_random.generate(0, avg_weight);
+    // init with weight of first particle
+    double c = old_belief[0].weight;
+    size_t i = 0;
+    double U = 0;
+    for (size_t m = 0; m < old_belief.size(); m++)
+    {
+      // find the particle for the given U
+      U = r + (m * avg_weight);
+      while (U > c)
+      {
+        i++;
+        c += old_belief[i].weight;
+      }
+      // Resample this particle and reset the weight
+      new_belief[m] = old_belief[i];
+      new_belief[m].weight = avg_weight;
+    }
+    return new_belief;
+  }
+
+  Belief get_belief() const
+  {
+    return belief;
   }
 
 private:
-  using Particle = typename filter_bay::Particle<stateSize>;
-  std::vector<Particle, 
-  std::array<Particle, particleCount> particles;
-  std::random_device random_device;
-  NormalSampler<stateSize> normal_sampler;
-};
+  Belief belief;
+  Model model;
+  UniformRandom uniform_random;
+}; // namespace filter_bay
 } // namespace filter_bay

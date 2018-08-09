@@ -18,7 +18,7 @@ class NormalSampler
   // Sample by projecting standard normal distributed values with L, where
   // L L^T = covarianc
 public:
-  typedef Eigen::Matrix<double, 2, 2> MatrixDim;
+  typedef Eigen::Matrix<double, dim, dim> MatrixDim;
   typedef Eigen::Matrix<double, dim, 1> VectorDim;
 
   /*!
