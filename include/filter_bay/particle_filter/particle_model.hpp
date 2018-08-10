@@ -4,19 +4,6 @@
 namespace filter_bay
 {
 /*!
-A particle as a sample of the target distribution consists of the state and the
-weight.
-*/
-template <typename StateType>
-struct Particle
-{
-  /*! The state of the sample */
-  StateType state;
-  /*! The weight of the sample */
-  double weight;
-};
-
-/*!
 Generic formulation of a transition + observation model.
 Passing in the generic functions is easier than subclassing this template.
 */
@@ -31,13 +18,13 @@ struct ParticleModel
   std::function<StateType(const StateType &, const InputType &)> predict;
 
   /*!
-  Calculates the calculate of the particle state given the current state and
-  observation.
+  Calculates the logarithmic likelihood of the particle state given the current 
+  state and observation.
   \param state the current state
   \param observation the current measurement
   */
   std::function<double(const StateType &state,
                        const ObservationType &observation)>
-      likelihood;
+      log_likelihood;
 };
 } // namespace filter_bay

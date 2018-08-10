@@ -1,11 +1,12 @@
 #pragma once
 #include <filter_bay/particle_filter/particle_model.hpp>
+#include <filter_bay/utility/log_arithmetics.h>
 #include <filter_bay/utility/uniform_random.hpp>
 
 namespace filter_bay
 {
 /*!
-Simple implementation of a particle filter which uses a 
+Particle filter which operates in logarithmic probability domain.
 */
 template <size_t particle_count, typename StateType, typename InputType,
           typename ObservationType>
@@ -13,8 +14,6 @@ class ParticleFilter
 {
 public:
   using Model = typename filter_bay::ParticleModel<StateType, InputType, ObservationType>;
-  using Sample = typename filter_bay::Particle<StateType>;
-  using Belief = typename std::array<Sample, particle_count>;
 
   ParticleFilter(Model particle_model)
       : model(std::move(particle_model))
@@ -28,10 +27,11 @@ public:
   void initialize(Belief initial_belief)
   {
     belief = std::move(initial_belief);
-    double avg_weight = (double)1.0 / belief.size();
-    for (Sample &sample : belief)
+    // log(1/belief_size) = log(1)-log(belief_size)=-log(belief_size)
+    double log_avg = -log(belief.size());
+    for (double &current : log_weight)
     {
-      sample.weight = avg_weight;
+      current = log_avg;
     }
   }
 
@@ -41,9 +41,9 @@ public:
   */
   void predict(const InputType &u)
   {
-    for (Sample &sample : belief)
+    for (StateType &current : states)
     {
-      sample.state = model.predict(sample.state, u);
+      current = model.predict(current, u);
     }
   }
 
@@ -58,27 +58,19 @@ public:
   void update(const ObservationType &z,
               size_t resample_threshold = particle_count / 2)
   {
-    double weight_sum = 0;
     // weights as posterior of observation
-    for (auto &sample : belief)
+    for (double &current : log_weights)
     {
-      // Using the prior as proposal so the weight recursion is simply:
-      sample.weight = sample.weight *
-                      model.likelihood(sample.state, z);
-      weight_sum += sample.weight;
+      // With prior as proposal distribution:
+      // log(weight*likelihood) = log(weight) + log_likelihood
+      current += model.log_likelihood(sample.state, z);
     }
     // Normalize weights
-    double normalize_const = 1 / weight_sum;
-    double square_sum = 0;
-    for (auto &sample : belief)
-    {
-      sample.weight = normalize_const * sample.weight;
-      square_sum += sample.weight * sample.weight;
-    }
+    log_weights = normalized_logs(log_weights);
     // Perform resampling?
-    if (1 / square_sum < resample_threshold)
+    if (ess_log(log_weights) < resample_threshold)
     {
-      belief = resample_low_var(belief);
+      belief = resample_systematic(belief);
     }
   }
 
@@ -86,12 +78,13 @@ public:
   Sampling systematically and thus keeping the sample variance lower than pure
   random sampling. It is also faster O(m) instead of O(m logm)
   */
-  Belief resample_low_var(const Belief &old_belief)
+  Belief resample_systematic(
+      const std::array<double, particle_count> &old_weights)
   {
-    Belief new_belief;
+    auto new_weights = old_weights;
     if (old_belief.size() == 0)
     {
-      return new_belief;
+      return new_weights;
     }
     double avg_weight = 1.0 / belief.size();
     double r = uniform_random.generate(0, avg_weight);
@@ -121,8 +114,12 @@ public:
   }
 
 private:
-  Belief belief;
+  // corrsponding states and weights
+  std::array<double, particle_count> log_weights;
+  std::array<StateType, particle_count> states;
+  // Transition and observation
   Model model;
+  // Uniform random number generator
   UniformRandom uniform_random;
 }; // namespace filter_bay
 } // namespace filter_bay
