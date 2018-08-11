@@ -74,11 +74,18 @@ public:
   void update(const ObservationType &z,
               double log_resample_threshold = log(particle_count / 2.0))
   {
+    double max_weight = -std::numeric_limits<double>::infinity();
     // weights as posterior of observation, prior is proposal density
     for (size_t i = 0; i < particle_count; i++)
     {
       // log(weight*likelihood) = log(weight) + log_likelihood
       log_weights[i] += log_likelihood_fn(states[i], z);
+      // check for MAP here, after resampling the weights are all equal
+      if (log_weights[i] > max_weight)
+      {
+        map_state = states[i];
+        max_weight = log_weights[i];
+      }
     }
     // Normalize weights
     log_weights = normalized_logs(log_weights);
@@ -119,6 +126,14 @@ public:
     }
   }
 
+  /*!
+  Returns the maximum-a-posteriori state from the last update step.
+  */
+  StateType get_map_state() const
+  {
+    return map_state;
+  }
+
   /*! 
   Returns the state of the particles. Use get_log_weights to obtain the full
   belief.
@@ -131,6 +146,7 @@ public:
   /*! 
   Returns the logarithmic weights of the particles. Use get_states to obtain the
   full belief.
+  Warning: after resampling the weights are worthless.
   */
   LogWeights get_log_weights() const
   {
@@ -147,6 +163,8 @@ private:
   // corrsponding states and weights
   LogWeights log_weights;
   States states;
+  // maximum-a-posteriori state;
+  StateType map_state;
   // state transition and measurement functions
   PredictFunction predict_fn;
   LogLikelihoodFunction log_likelihood_fn;

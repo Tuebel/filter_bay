@@ -66,11 +66,18 @@ public:
               double resample_threshold = particle_count / 2.0)
   {
     double weight_sum = 0;
+    double max_weight = -std::numeric_limits<double>::infinity();
     // weights as posterior of observation
     for (size_t i = 0; i < particle_count; i++)
     {
       // Using the prior as proposal so the weight recursion is simply:
       weights[i] *= likelihood_fn(states[i], z);
+      // check for MAP here, after resampling the weights are all equal
+      if (weights[i] > max_weight)
+      {
+        map_state = states[i];
+        max_weight = weights[i];
+      }
       weight_sum += weights[i];
     }
     // Normalize weights
@@ -117,6 +124,14 @@ public:
     }
   }
 
+  /*!
+  Returns the maximum-a-posteriori state from the last update step.
+  */
+  StateType get_map_state() const
+  {
+    return map_state;
+  }
+
   /*! 
   Returns the state of the particles. Use get_weights to obtain the full belief.
   */
@@ -128,6 +143,7 @@ public:
   /*! 
   Returns the weights of the particles. Use get_states to obtain the full
   belief.
+  Warning: after resampling the weights are worthless.
   */
   Weights get_weights() const
   {
@@ -144,6 +160,8 @@ private:
   // corrsponding states and weights
   Weights weights;
   States states;
+  // maximum-a-posteriori state;
+  StateType map_state;
   // state transition and measurement functions
   PredictFunction predict_fn;
   LikelihoodFunction likelihood_fn;

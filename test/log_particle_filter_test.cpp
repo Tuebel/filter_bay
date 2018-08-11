@@ -96,11 +96,14 @@ TEST(ParticleFilterTest, TestFilterStep)
   {
     std::cout << "updat no " << n << "\n";
     filter.update(OBSERVATION);
+    auto updated_states = filter.get_states();
+    auto updated_weights = filter.get_log_weights();
     for (size_t i = 0; i < filter.get_particle_count(); i++)
     {
-      std::cout << filter.get_states()[i] << "\t"
-                << filter.get_log_weights()[i] << "\n";
+      std::cout << updated_states[i] << "\t"
+                << updated_weights[i] << "\n";
     }
+    std::cout << "MAP " << filter.get_map_state() << "\n";
   }
 }
 
