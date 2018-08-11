@@ -1,5 +1,6 @@
 #pragma once
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <stdexcept>
 #include <vector>
@@ -11,7 +12,8 @@ Calculates ln(exp(a) + exp(b)) while avoiding overflow and underflow issues.
 */
 double jacobi_logarithm(double log_a, double log_b)
 {
-  return std::max(log_a, log_b) + log(1 + exp(-abs(log_a - log_b)));
+  return std::max(log_a, log_b) + std::log(1 +
+                                           std::exp(-std::abs(log_a - log_b)));
 }
 
 /*!
@@ -25,9 +27,9 @@ double log_sum_exp(const std::array<double, N> &log_values)
   double exp_sum = 0;
   for (double current : log_values)
   {
-    exp_sum += exp(current - max);
+    exp_sum += std::exp(current - max);
   }
-  return max + log(exp_sum);
+  return max + std::log(exp_sum);
 }
 
 /*!
@@ -40,9 +42,9 @@ double log_sum_exp(const std::vector<double> &log_values)
   double exp_sum = 0;
   for (double current : log_values)
   {
-    exp_sum += exp(current - max);
+    exp_sum += std::exp(current - max);
   }
-  return max + log(exp_sum);
+  return max + std::log(exp_sum);
 }
 
 /*!
@@ -53,7 +55,7 @@ norm_val = val - normalization_const . Instead of norm_val = val / norm_const
 template <size_t N>
 std::array<double, N> normalized_logs(std::array<double, N> log_values)
 {
-  double norm_const = jacobi_logarithm(log_values);
+  double norm_const = log_sum_exp(log_values);
   for (double &value : log_values)
   {
     // log(x/N) = log(x) - log(N)

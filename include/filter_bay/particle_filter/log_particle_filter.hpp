@@ -1,5 +1,5 @@
 #pragma once
-#include <filter_bay/utility/log_arithmetics.h>
+#include <filter_bay/utility/log_arithmetics.hpp>
 #include <filter_bay/utility/uniform_random.hpp>
 #include <array>
 #include <algorithm>
@@ -23,11 +23,16 @@ template <size_t particle_count, typename StateType, typename InputType,
 class LogParticleFilter
 {
 public:
-  using Model = typename filter_bay::ParticleModel<StateType, InputType, ObservationType>;
   using States = typename std::array<StateType, particle_count>;
   using LogWeights = typename std::array<double, particle_count>;
+  /*! Predicts the state transition */
+  using PredictFunction = std::function<StateType(const StateType &, const InputType &)>;
+  /*! Calculates the logarithmic likelihood from an observation */
+  using LogLikelihoodFunction = std::function<double(const StateType &state, const ObservationType &observation)>;
 
-  ParticleFilter(Model particle_model) : model(std::move(particle_model))
+  LogParticleFilter(PredictFunction predict_function,
+                    LogLikelihoodFunction log_likelihood_function)
+      : predict_fn(predict_function), log_likelihood_fn(log_likelihood_function)
   {
   }
 
@@ -38,8 +43,8 @@ public:
   {
     states = std::move(initial_states);
     // log(1/belief_size) = -log(belief_size)
-    double log_avg = -log(belief.size());
-    for (double &current : log_weight)
+    double log_avg = -log(particle_count);
+    for (double &current : log_weights)
     {
       current = log_avg;
     }
@@ -53,7 +58,7 @@ public:
   {
     for (StateType &current : states)
     {
-      current = model.predict(current, u);
+      current = predict_fn(current, u);
     }
   }
 
@@ -63,16 +68,17 @@ public:
   Resampling is performed with the low variance resampling method.
   \param z the current observation
   \param log_resample_threshold threshold of the effective sample size(ESS). 
-  Resampling is performed if ESS < resample_threshold. log(N/2) is a typical value. 
+  Resampling is performed if ESS < resample_threshold. log(N/2) is a typical
+  value. 
   */
   void update(const ObservationType &z,
-              size_t log_resample_threshold = log(particle_count / 2))
+              double log_resample_threshold = log(particle_count / 2.0))
   {
     // weights as posterior of observation, prior is proposal density
     for (size_t i = 0; i < particle_count; i++)
     {
       // log(weight*likelihood) = log(weight) + log_likelihood
-      log_weights[i] += model.log_likelihood(states[i], z);
+      log_weights[i] += log_likelihood_fn(states[i], z);
     }
     // Normalize weights
     log_weights = normalized_logs(log_weights);
@@ -91,11 +97,12 @@ public:
   {
     // Make copy of old belief
     States old_states = states;
-    LogWeights old_weights = weights;
+    LogWeights old_weights = log_weights;
     // Start at random value within average weight
     double cumulative = old_weights[0];
-    double start_weight = uniform_random.generate(0, 1 / particle_count);
-    double log_avg = -log(particle_count);
+    double avg_weight = 1.0 / particle_count;
+    double start_weight = uniform_random.generate(0, avg_weight);
+    double log_avg = log(avg_weight);
     // o in old_weights, n in new_weigts
     size_t o = 0;
     for (size_t n = 0; n < particle_count; n++)
@@ -112,27 +119,25 @@ public:
     }
   }
 
-  /*!
-  Returns the maximum a posteriori state (largest weight).
+  /*! 
+  Returns the state of the particles. Use get_log_weights to obtain the full
+  belief.
   */
-  StateType get_map_state() const
-  {
-    auto index = std::distance(log_weights,
-                               std::max_element(log_weights.begin(),
-                                                log_weights.end()));
-    return states[index];
-  }
-
   States get_states() const
   {
     return states;
   }
 
+  /*! 
+  Returns the logarithmic weights of the particles. Use get_states to obtain the
+  full belief.
+  */
   LogWeights get_log_weights() const
   {
     return log_weights;
   }
 
+  /*! Returns the number of particles beeing simulated */
   size_t get_particle_count()
   {
     return particle_count;
@@ -142,8 +147,9 @@ private:
   // corrsponding states and weights
   LogWeights log_weights;
   States states;
-  // Transition and observation
-  Model model;
+  // state transition and measurement functions
+  PredictFunction predict_fn;
+  LogLikelihoodFunction log_likelihood_fn;
   // Uniform random number generator
   UniformRandom uniform_random;
 };

@@ -8,7 +8,7 @@
 namespace filter_bay
 {
 /*!
-Simple implementation of a particle filter which uses a 
+Simple implementation of a particle filter which uses systematic resampling.
 */
 template <size_t particle_count, typename StateType, typename InputType,
           typename ObservationType>
@@ -63,7 +63,7 @@ public:
   Resampling is performed if ESS < resample_threshold. N/2 is a typical value. 
   */
   void update(const ObservationType &z,
-              size_t resample_threshold = particle_count / 2)
+              double resample_threshold = particle_count / 2.0)
   {
     double weight_sum = 0;
     // weights as posterior of observation
@@ -117,27 +117,24 @@ public:
     }
   }
 
-  /*!
-  Returns the maximum a posteriori state (largest weight).
+  /*! 
+  Returns the state of the particles. Use get_weights to obtain the full belief.
   */
-  StateType get_map_state() const
-  {
-    auto index = std::distance(weights,
-                               std::max_element(weights.begin(),
-                                                weights.end()));
-    return states[index];
-  }
-
   States get_states() const
   {
     return states;
   }
 
+  /*! 
+  Returns the weights of the particles. Use get_states to obtain the full
+  belief.
+  */
   Weights get_weights() const
   {
     return weights;
   }
 
+  /*! Returns the number of particles beeing simulated */
   size_t get_particle_count()
   {
     return particle_count;
@@ -152,5 +149,5 @@ private:
   LikelihoodFunction likelihood_fn;
   // sample from uniform distribution
   UniformRandom uniform_random;
-}; // namespace filter_bay
+};
 } // namespace filter_bay
