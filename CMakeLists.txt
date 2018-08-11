@@ -9,6 +9,8 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+# use as ros2 package
+find_package(ament_cmake REQUIRED)
 # enable testing with ctest
 include(CTest)
 # external packages
@@ -41,3 +43,5 @@ install(TARGETS
   ARCHIVE DESTINATION lib/${PROJECT_NAME}
   LIBRARY DESTINATION lib/${PROJECT_NAME}
   RUNTIME DESTINATION lib/${PROJECT_NAME})
+
+ament_package()

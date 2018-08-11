@@ -22,6 +22,15 @@ public:
   typedef Eigen::Matrix<double, dim, 1> VectorDim;
 
   /*!
+  Create the sampler using a random_device to create the seed.
+  */
+  NormalSampler()
+  {
+    std::random_device random_device;
+    uniform_generator = std::mt19937(random_device());
+  }
+
+  /*!
   Create the sampler via a seed. For testing it should always be the same seed.
   In real world use the random_device class to generate the seed.
   */

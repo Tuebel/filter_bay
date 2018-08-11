@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>filter_bay</name>
-  <version>0.0.1</version>
+  <version>0.1.0</version>
   <description>
   A small filter library for BAYesian filtering. It does not try to be an
   "Eierlegende Wollmilchsau" as it accepts that the filter models are just
