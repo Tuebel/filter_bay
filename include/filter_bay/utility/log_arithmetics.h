@@ -56,6 +56,7 @@ std::array<double, N> normalized_logs(std::array<double, N> log_values)
   double norm_const = jacobi_logarithm(log_values);
   for (double &value : log_values)
   {
+    // log(x/N) = log(x) - log(N)
     value -= norm_const;
   }
   return log_values;
@@ -71,6 +72,7 @@ std::vector<double> normalized_logs(std::vector<double> log_values)
   double norm_const = log_sum_exp(log_values);
   for (double &value : log_values)
   {
+    // log(x/N) = log(x) - log(N)
     value -= norm_const;
   }
   return log_values;
@@ -84,8 +86,10 @@ double ess_log(std::vector<double> norm_log_weights)
 {
   for (double &current : norm_log_weights)
   {
+    // log(x^2) = 2log(x)
     current *= 2;
   }
+  // log(1/x)=-log(x)
   return -log_sum_exp(norm_log_weights);
 }
 
@@ -98,8 +102,10 @@ double ess_log(std::array<double, N> norm_log_weights)
 {
   for (double &current : norm_log_weights)
   {
+    // log(x^2)=2*log(x)
     current *= 2;
   }
+  // log(1/sum)=-log(sum)
   return -log_sum_exp(norm_log_weights);
 }
 

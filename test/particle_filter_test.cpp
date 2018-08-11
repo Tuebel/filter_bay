@@ -22,41 +22,36 @@ double likelihood(const double &state, const double &observation)
 
 MyFilter create_filter()
 {
-  // Create model
-  MyFilter::Model model;
-  model.predict = predict;
-  model.likelihood = likelihood;
   // Create filter
-  return MyFilter(std::move(model));
+  return MyFilter(predict, likelihood);
 }
 
 TEST(ParticleFilterTest, TestInitialization)
 {
   auto filter = create_filter();
-  MyFilter::Belief belief;
-  double avg_weight = (double)1.0 / belief.size();
-  for (size_t i = 0; i < belief.size(); i++)
+  MyFilter::States states;
+  double avg_weight = 1.0 / states.size();
+  for (size_t i = 0; i < states.size(); i++)
   {
-    belief[i].state = i;
+    states[i] = i;
   }
   // Test initializing
-  filter.initialize(belief);
-  for (size_t i = 0; i < filter.get_belief().size(); i++)
+  filter.initialize(states);
+  for (size_t i = 0; i < filter.get_particle_count(); i++)
   {
-    ASSERT_DOUBLE_EQ(i, filter.get_belief()[i].state);
-    ASSERT_DOUBLE_EQ(avg_weight, filter.get_belief()[i].weight);
+    ASSERT_DOUBLE_EQ(i, filter.get_states()[i]);
+    ASSERT_DOUBLE_EQ(avg_weight, filter.get_weights()[i]);
   }
-  for (size_t i = 0; i < belief.size(); i++)
+  for (size_t i = 0; i < states.size(); i++)
   {
-    belief[i].state = 0;
-    belief[i].weight = 0;
+    states[i] = 0;
   }
   // Again with 0 as value. The weights must be the avg.
-  filter.initialize(belief);
-  for (size_t i = 0; i < filter.get_belief().size(); i++)
+  filter.initialize(states);
+  for (size_t i = 0; i < filter.get_particle_count(); i++)
   {
-    ASSERT_DOUBLE_EQ(0, filter.get_belief()[i].state);
-    ASSERT_DOUBLE_EQ(avg_weight, filter.get_belief()[i].weight);
+    ASSERT_DOUBLE_EQ(0, filter.get_states()[i]);
+    ASSERT_DOUBLE_EQ(avg_weight, filter.get_weights()[i]);
   }
 }
 
@@ -64,19 +59,19 @@ TEST(ParticleFilterTest, TestFilterStep)
 {
 
   auto filter = create_filter();
-  MyFilter::Belief belief;
-  for (size_t i = 0; i < belief.size(); i++)
+  MyFilter::States states;
+  for (size_t i = 0; i < states.size(); i++)
   {
-    belief[i].state = i;
+    states[i] = i;
   }
-  filter.initialize(belief);
+  filter.initialize(states);
   // Test prediction
   filter.predict(42);
-  double avg_weight = (double)1.0 / belief.size();
-  for (size_t i = 0; i < filter.get_belief().size(); i++)
+  double avg_weight = (double)1.0 / states.size();
+  for (size_t i = 0; i < filter.get_particle_count(); i++)
   {
-    ASSERT_DOUBLE_EQ(i + 42, filter.get_belief()[i].state);
-    ASSERT_DOUBLE_EQ(avg_weight, filter.get_belief()[i].weight);
+    ASSERT_DOUBLE_EQ(i + 42, filter.get_states()[i]);
+    ASSERT_DOUBLE_EQ(avg_weight, filter.get_weights()[i]);
   }
   // Test filter step using a gaussian
   filter_bay::NormalSampler<1> normal_sampler(42);
@@ -84,23 +79,23 @@ TEST(ParticleFilterTest, TestFilterStep)
   mean << 42;
   Eigen::Matrix<double, 1, 1> variance;
   variance << 1;
-  for (size_t i = 0; i < belief.size(); i++)
+  for (size_t i = 0; i < states.size(); i++)
   {
-    belief[i].state = normal_sampler.sample_robust(mean, variance)(0);
+    states[i] = normal_sampler.sample_robust(mean, variance)(0);
   }
-  filter.initialize(belief);
-  for (size_t i = 0; i < filter.get_belief().size(); i++)
+  filter.initialize(states);
+  for (size_t i = 0; i < filter.get_particle_count(); i++)
   {
-    std::cout << filter.get_belief()[i].state << "\t"
-              << filter.get_belief()[i].weight << "\n";
+    std::cout << filter.get_states()[i] << "\t"
+              << filter.get_weights()[i] << "\n";
   }
   for (int n = 0; n < 5; n++)
   {
     filter.update(43);
-    for (size_t i = 0; i < filter.get_belief().size(); i++)
+    for (size_t i = 0; i < filter.get_particle_count(); i++)
     {
-      std::cout << filter.get_belief()[i].state << "\t"
-                << filter.get_belief()[i].weight << "\n";
+      std::cout << filter.get_states()[i] << "\t"
+                << filter.get_weights()[i] << "\n";
     }
   }
 }

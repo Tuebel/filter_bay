@@ -1,6 +1,9 @@
 #pragma once
-#include <filter_bay/particle_filter/particle_model.hpp>
 #include <filter_bay/utility/uniform_random.hpp>
+#include <array>
+#include <algorithm>
+#include <cmath>
+#include <functional>
 
 namespace filter_bay
 {
@@ -12,10 +15,16 @@ template <size_t particle_count, typename StateType, typename InputType,
 class ParticleFilter
 {
 public:
-  using Model = typename filter_bay::ParticleModel<StateType, InputType, ObservationType>;
+  using States = typename std::array<StateType, particle_count>;
+  using Weights = typename std::array<double, particle_count>;
+  /*! Predicts the state transition */
+  using PredictFunction = std::function<StateType(const StateType &, const InputType &)>;
+  /*! Calculates the likelihood from an observation */
+  using LikelihoodFunction = std::function<double(const StateType &state, const ObservationType &observation)>;
 
-  ParticleFilter(Model particle_model)
-      : model(std::move(particle_model))
+  ParticleFilter(PredictFunction predict_function,
+                 LikelihoodFunction likelihood_function)
+      : predict_fn(predict_function), likelihood_fn(likelihood_function)
   {
   }
 
@@ -23,13 +32,13 @@ public:
   Set the initial belief. Makes sure that the initial weights are distributed
   uniformally.
   */
-  void initialize(Belief initial_belief)
+  void initialize(States initial_states)
   {
-    belief = std::move(initial_belief);
-    double avg_weight = (double)1.0 / belief.size();
-    for (Sample &sample : belief)
+    states = std::move(initial_states);
+    double avg_weight = 1.0 / particle_count;
+    for (double &current : weights)
     {
-      sample.weight = avg_weight;
+      current = avg_weight;
     }
   }
 
@@ -39,9 +48,9 @@ public:
   */
   void predict(const InputType &u)
   {
-    for (Sample &sample : belief)
+    for (StateType &current : states)
     {
-      sample.state = model.predict(sample.state, u);
+      current = predict_fn(current, u);
     }
   }
 
@@ -58,25 +67,24 @@ public:
   {
     double weight_sum = 0;
     // weights as posterior of observation
-    for (auto &sample : belief)
+    for (size_t i = 0; i < particle_count; i++)
     {
       // Using the prior as proposal so the weight recursion is simply:
-      sample.weight = sample.weight *
-                      model.likelihood(sample.state, z);
-      weight_sum += sample.weight;
+      weights[i] *= likelihood_fn(states[i], z);
+      weight_sum += weights[i];
     }
     // Normalize weights
     double normalize_const = 1 / weight_sum;
     double square_sum = 0;
-    for (auto &sample : belief)
+    for (auto &current : weights)
     {
-      sample.weight = normalize_const * sample.weight;
-      square_sum += sample.weight * sample.weight;
+      current *= normalize_const;
+      square_sum += current * current;
     }
-    // Perform resampling?
+    // Perform resampling? Calc effective sample size
     if (1 / square_sum < resample_threshold)
     {
-      belief = resample_low_var(belief);
+      resample_systematic();
     }
   }
 
@@ -84,46 +92,64 @@ public:
   Sampling systematically and thus keeping the sample variance lower than pure
   random sampling. It is also faster O(m) instead of O(m logm)
   */
-  Belief resample_low_var(const Belief &old_belief)
+  void resample_systematic()
   {
-    Belief new_belief;
-    if (old_belief.size() == 0)
+    // Make copy of old belief
+    States old_states = states;
+    Weights old_weights = weights;
+    // Start at random value within average weight
+    double cumulative = old_weights[0];
+    double avg_weight = 1.0 / particle_count;
+    double start_weight = uniform_random.generate(0, avg_weight);
+    // indices: o in old, n in new
+    size_t o = 0;
+    for (size_t n = 0; n < particle_count; n++)
     {
-      return new_belief;
-    }
-    double avg_weight = 1.0 / belief.size();
-    double r = uniform_random.generate(0, avg_weight);
-    // init with weight of first particle
-    double c = old_belief[0].weight;
-    size_t i = 0;
-    double U = 0;
-    for (size_t m = 0; m < old_belief.size(); m++)
-    {
-      // find the particle for the given U
-      U = r + (m * avg_weight);
-      while (U > c)
+      double U = start_weight + n * avg_weight;
+      while (U > cumulative)
       {
-        i++;
-        c += old_belief[i].weight;
+        o++;
+        cumulative += old_weights[o];
       }
       // Resample this particle and reset the weight
-      new_belief[m] = old_belief[i];
-      new_belief[m].weight = avg_weight;
+      states[n] = old_states[o];
+      weights[n] = avg_weight;
     }
-    return new_belief;
   }
 
-  Belief get_belief() const
+  /*!
+  Returns the maximum a posteriori state (largest weight).
+  */
+  StateType get_map_state() const
   {
-    return belief;
+    auto index = std::distance(weights,
+                               std::max_element(weights.begin(),
+                                                weights.end()));
+    return states[index];
+  }
+
+  States get_states() const
+  {
+    return states;
+  }
+
+  Weights get_weights() const
+  {
+    return weights;
+  }
+
+  size_t get_particle_count()
+  {
+    return particle_count;
   }
 
 private:
   // corrsponding states and weights
-  std::array<double, particle_count> log_weights;
-  std::array<StateType, particle_count> states;
-  // state transition and observation model
-  Model model;
+  Weights weights;
+  States states;
+  // state transition and measurement functions
+  PredictFunction predict_fn;
+  LikelihoodFunction likelihood_fn;
   // sample from uniform distribution
   UniformRandom uniform_random;
 }; // namespace filter_bay

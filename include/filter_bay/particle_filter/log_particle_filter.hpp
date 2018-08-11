@@ -1,8 +1,10 @@
 #pragma once
-#include <filter_bay/particle_filter/particle_model.hpp>
 #include <filter_bay/utility/log_arithmetics.h>
 #include <filter_bay/utility/uniform_random.hpp>
 #include <array>
+#include <algorithm>
+#include <cmath>
+#include <functional>
 
 namespace filter_bay
 {
@@ -22,6 +24,8 @@ class LogParticleFilter
 {
 public:
   using Model = typename filter_bay::ParticleModel<StateType, InputType, ObservationType>;
+  using States = typename std::array<StateType, particle_count>;
+  using LogWeights = typename std::array<double, particle_count>;
 
   ParticleFilter(Model particle_model) : model(std::move(particle_model))
   {
@@ -30,10 +34,10 @@ public:
   /*!
   Set the initial state belief. Distributes the weights uniformly
   */
-  void initialize(std::array<StateType, particle_count> state_belief)
+  void initialize(States initial_states)
   {
-    states = std::move(state_belief);
-    // log(1/belief_size) = log(1)-log(belief_size)=-log(belief_size)
+    states = std::move(initial_states);
+    // log(1/belief_size) = -log(belief_size)
     double log_avg = -log(belief.size());
     for (double &current : log_weight)
     {
@@ -58,24 +62,24 @@ public:
   The update step is done in a SIR bootstrap filter fashion.
   Resampling is performed with the low variance resampling method.
   \param z the current observation
-  \param resample_threshold threshold of the effective sample size(ESS). 
-  Resampling is performed if ESS < resample_threshold. N/2 is a typical value. 
+  \param log_resample_threshold threshold of the effective sample size(ESS). 
+  Resampling is performed if ESS < resample_threshold. log(N/2) is a typical value. 
   */
   void update(const ObservationType &z,
-              size_t resample_threshold = particle_count / 2)
+              size_t log_resample_threshold = log(particle_count / 2))
   {
     // weights as posterior of observation, prior is proposal density
-    for (double &current : log_weights)
+    for (size_t i = 0; i < particle_count; i++)
     {
       // log(weight*likelihood) = log(weight) + log_likelihood
-      current += model.log_likelihood(sample.state, z);
+      log_weights[i] += model.log_likelihood(states[i], z);
     }
     // Normalize weights
     log_weights = normalized_logs(log_weights);
-    // Perform resampling?
-    if (ess_log(log_weights) < resample_threshold)
+    // Perform resampling? Effective sample_size < threshold
+    if (ess_log(log_weights) < log_resample_threshold)
     {
-      belief = resample_systematic(belief);
+      resample_systematic();
     }
   }
 
@@ -83,38 +87,35 @@ public:
   Sampling systematically and thus keeping the sample variance lower than pure
   random sampling. It is also faster O(m) instead of O(m logm)
   */
-  Belief resample_systematic(
-      const std::array<double, particle_count> &old_weights)
+  void resample_systematic()
   {
-    auto new_weights = old_weights;
-    if (old_belief.size() == 0)
-    {
-      return new_weights;
-    }
-    double log_avg = -log(particle_count);
-    // init with weight of first particle
+    // Make copy of old belief
+    States old_states = states;
+    LogWeights old_weights = weights;
+    // Start at random value within average weight
     double cumulative = old_weights[0];
-    double cumulative_min = uniform_random.generate(0, avg_weight);
+    double start_weight = uniform_random.generate(0, 1 / particle_count);
+    double log_avg = -log(particle_count);
     // o in old_weights, n in new_weigts
     size_t o = 0;
-    for (size_t n = 0; n < old_belief.size(); n++)
+    for (size_t n = 0; n < particle_count; n++)
     {
-      // find the particle for the given U
-      while (cumulative_min > c)
+      double U = log(start_weight + n * avg_weight);
+      while (U > cumulative)
       {
         o++;
         cumulative = jacobi_logarithm(cumulative, old_weights[o]);
       }
       // Resample this particle and reset the weight
-      new_belief[n] = old_belief[o];
-      new_belief[n].log_weight = log_avg;
-      // increase for next draw
-      avg_cumulative = jacobi_logarithm(avg_cumulative, log_avg);
+      states[n] = old_states[o];
+      log_weights[n] = log_avg;
     }
-    return new_belief;
   }
 
-  StateType get_best() const
+  /*!
+  Returns the maximum a posteriori state (largest weight).
+  */
+  StateType get_map_state() const
   {
     auto index = std::distance(log_weights,
                                std::max_element(log_weights.begin(),
@@ -122,20 +123,25 @@ public:
     return states[index];
   }
 
-  std::array<StateType, particle_count> get_states() const
+  States get_states() const
   {
     return states;
   }
 
-  std::array<double, particle_count> get_log_weights() const
+  LogWeights get_log_weights() const
   {
     return log_weights;
   }
 
+  size_t get_particle_count()
+  {
+    return particle_count;
+  }
+
 private:
   // corrsponding states and weights
-  std::array<double, particle_count> log_weights;
-  std::array<StateType, particle_count> states;
+  LogWeights log_weights;
+  States states;
   // Transition and observation
   Model model;
   // Uniform random number generator
