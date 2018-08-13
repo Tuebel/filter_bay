@@ -13,12 +13,12 @@
   <license>MIT</license>
   <author email="tim.uebelhoer@rwth-aachen.de">Tim Übelhör</author>
 
-  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>cmake</buildtool_depend>
   <test_depend>GTest</test_depend>
   <doc_depend>doxygen</doc_depend>
   <build_depend>eigen</build_depend>
 
   <export>
-    <build_type>ament_cmake</build_type>
+    <build_type>cmake</build_type>
   </export>
 </package>

@@ -9,15 +9,25 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# use as ros2 package
-find_package(ament_cmake REQUIRED)
-# enable testing with ctest
+# find dependencies
+find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+
+# Create filter_bay library with interface definitions
+add_library(filter_bay INTERFACE)
+target_include_directories(filter_bay INTERFACE
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+target_link_libraries(filter_bay INTERFACE Eigen3::Eigen)
+
+# installation
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ DESTINATION include)
+install(FILES filter_bay-config.cmake DESTINATION lib/filter_bay/)
+install(TARGETS filter_bay DESTINATION lib EXPORT filter_bay_targets)
+install(EXPORT filter_bay_targets DESTINATION lib/filter_bay)
+export(TARGETS filter_bay FILE filter_bay_exports.cmake)
+
+# testing
 include(CTest)
-# external packages
-find_package(Eigen3 3.3 REQUIRED)
-
-include_directories(include)
-
 if(${BUILD_TESTING})
   # unit testing with google test
   find_package(GTest REQUIRED)
@@ -28,20 +38,8 @@ if(${BUILD_TESTING})
     add_executable(${testname} ${sourcefile})
     target_link_libraries (${testname}
       ${GTEST_LIBRARIES}
-      pthread
-    Eigen3::Eigen)
+      filter_bay
+      pthread)
     gtest_discover_tests(${testname})
-  endforeach(sourcefile ${TEST_SRCS})
+endforeach(sourcefile ${TEST_SRCS})
 endif()
-
-## Install include dir
-install(
-  DIRECTORY include/filter_bay
-  DESTINATION include)
-## Install executable and lib
-install(TARGETS
-  ARCHIVE DESTINATION lib/${PROJECT_NAME}
-  LIBRARY DESTINATION lib/${PROJECT_NAME}
-  RUNTIME DESTINATION lib/${PROJECT_NAME})
-
-ament_package()

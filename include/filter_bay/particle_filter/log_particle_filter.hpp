@@ -67,13 +67,14 @@ public:
   The update step is done in a SIR bootstrap filter fashion.
   Resampling is performed with the low variance resampling method.
   \param z the current observation
-  \param log_resample_threshold threshold of the effective sample size(ESS). 
-  Resampling is performed if ESS < resample_threshold. log(N/2) is a typical
+  \param resample_threshold threshold of the effective sample size(ESS). 
+  Resampling is performed if ESS < resample_threshold. N/2 is a typical
   value. 
   */
   void update(const ObservationType &z,
-              double log_resample_threshold = log(particle_count / 2.0))
+              double resample_threshold = particle_count / 2.0)
   {
+    double log_resample_threshold = std::log(resample_threshold);
     double max_weight = -std::numeric_limits<double>::infinity();
     // weights as posterior of observation, prior is proposal density
     for (size_t i = 0; i < particle_count; i++)
