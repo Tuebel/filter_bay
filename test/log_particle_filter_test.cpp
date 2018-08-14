@@ -26,7 +26,7 @@ double log_likelihood(const double &state, const double &observation)
 MyFilter create_filter()
 {
   // Create filter
-  return MyFilter(predict, log_likelihood);
+  return MyFilter();
 }
 
 TEST(ParticleFilterTest, TestInitialization)
@@ -69,7 +69,7 @@ TEST(ParticleFilterTest, TestFilterStep)
   }
   filter.initialize(states);
   // Test prediction
-  filter.predict(MEAN);
+  filter.predict(MEAN, predict);
   double avg_log_weight = log(1.0 / states.size());
   for (size_t i = 0; i < filter.get_particle_count(); i++)
   {
@@ -95,7 +95,7 @@ TEST(ParticleFilterTest, TestFilterStep)
   for (int n = 0; n < 5; n++)
   {
     std::cout << "updat no " << n << "\n";
-    filter.update(OBSERVATION);
+    filter.update(OBSERVATION, log_likelihood);
     auto updated_states = filter.get_states();
     auto updated_weights = filter.get_log_weights();
     for (size_t i = 0; i < filter.get_particle_count(); i++)

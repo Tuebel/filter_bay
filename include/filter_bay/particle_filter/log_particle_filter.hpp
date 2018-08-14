@@ -25,16 +25,14 @@ class LogParticleFilter
 public:
   using States = typename std::array<StateType, particle_count>;
   using LogWeights = typename std::array<double, particle_count>;
+  using LogLikelihoods = typename std::array<double, particle_count>;
   /*! Predicts the state transition */
-  using PredictFunction = std::function<StateType(const StateType &, const InputType &)>;
+  using TransitionFunction = std::function<StateType(const StateType &, const InputType &)>;
   /*! Calculates the logarithmic likelihood from an observation */
   using LogLikelihoodFunction = std::function<double(const StateType &state, const ObservationType &observation)>;
-
-  LogParticleFilter(PredictFunction predict_function,
-                    LogLikelihoodFunction log_likelihood_function)
-      : predict_fn(predict_function), log_likelihood_fn(log_likelihood_function)
-  {
-  }
+  /*! Calculates the likelihoods for a batch of states. Can optimize the
+  calculating for limited resources, async calculations, etc. */
+  using BatchLogLikelihoodFunction = std::function<LogLikelihoods(const States &states, const ObservationType &observation)>;
 
   /*!
   Set the initial state belief. Distributes the weights uniformly
@@ -54,11 +52,11 @@ public:
   Calculates the prediction for every particle without updating the weights.
   \param u the control input
   */
-  void predict(const InputType &u)
+  void predict(const InputType &u, const TransitionFunction &transition)
   {
     for (StateType &current : states)
     {
-      current = predict_fn(current, u);
+      current = transition(current, u);
     }
   }
 
@@ -67,12 +65,90 @@ public:
   The update step is done in a SIR bootstrap filter fashion.
   Resampling is performed with the low variance resampling method.
   \param z the current observation
+  \param log_likelihood the function to estimate the likelihood for a given 
+  state and observation
   \param resample_threshold threshold of the effective sample size(ESS). 
   Resampling is performed if ESS < resample_threshold. N/2 is a typical
   value. 
   */
   void update(const ObservationType &z,
+              const LogLikelihoodFunction &log_likelihood,
               double resample_threshold = particle_count / 2.0)
+  {
+    LogLikelihoods log_likelihoods;
+    // weights as posterior of observation, prior is proposal density
+    for (size_t i = 0; i < particle_count; i++)
+    {
+      log_likelihoods[i] = log_likelihood(states[i], z);
+    }
+    update_by_likelihoods(log_likelihoods, resample_threshold);
+  }
+
+  /*!
+  Updates the particle weights by incorporating the observation as a batch.
+  The update step is done in a SIR bootstrap filter fashion.
+  Resampling is performed with the low variance resampling method.
+  \param z the current observation
+  \param likelihood the function to estimate the likelihood for a given state
+  and observation
+  \param resample_threshold threshold of the effective sample size(ESS). 
+  Resampling is performed if ESS < resample_threshold. N/2 is a typical value. 
+  */
+  void update_batch(const ObservationType &z,
+                    const BatchLogLikelihoodFunction &batch_log_likelihood,
+                    double resample_threshold = particle_count / 2.0)
+  {
+    update_by_likelihoods(batch_log_likelihood(states, z), resample_threshold);
+  }
+
+  /*!
+  Returns the maximum-a-posteriori state from the last update step.
+  */
+  StateType get_map_state() const
+  {
+    return map_state;
+  }
+
+  /*! 
+  Returns the state of the particles. Use get_log_weights to obtain the full
+  belief.
+  */
+  States get_states() const
+  {
+    return states;
+  }
+
+  /*! 
+  Returns the logarithmic weights of the particles. Use get_states to obtain the
+  full belief.
+  Warning: after resampling the weights are worthless.
+  */
+  LogWeights get_log_weights() const
+  {
+    return log_weights;
+  }
+
+  /*! Returns the number of particles beeing simulated */
+  size_t get_particle_count()
+  {
+    return particle_count;
+  }
+
+private:
+  // corrsponding states and weights
+  LogWeights log_weights;
+  States states;
+  // maximum-a-posteriori state;
+  StateType map_state;
+  // Uniform random number generator
+  UniformRandom uniform_random;
+  /*!
+  Updates the weights, the MAP estimate by given likelihoods.
+  Resamples the particles if the effective sample size is smaller than the
+  threshold
+  */
+  void update_by_likelihoods(const LogLikelihoods &log_likelihoods,
+                             double resample_threshold)
   {
     double log_resample_threshold = std::log(resample_threshold);
     double max_weight = -std::numeric_limits<double>::infinity();
@@ -80,7 +156,7 @@ public:
     for (size_t i = 0; i < particle_count; i++)
     {
       // log(weight*likelihood) = log(weight) + log_likelihood
-      log_weights[i] += log_likelihood_fn(states[i], z);
+      log_weights[i] += log_likelihoods[i];
       // check for MAP here, after resampling the weights are all equal
       if (log_weights[i] > max_weight)
       {
@@ -126,50 +202,5 @@ public:
       log_weights[n] = log_avg;
     }
   }
-
-  /*!
-  Returns the maximum-a-posteriori state from the last update step.
-  */
-  StateType get_map_state() const
-  {
-    return map_state;
-  }
-
-  /*! 
-  Returns the state of the particles. Use get_log_weights to obtain the full
-  belief.
-  */
-  States get_states() const
-  {
-    return states;
-  }
-
-  /*! 
-  Returns the logarithmic weights of the particles. Use get_states to obtain the
-  full belief.
-  Warning: after resampling the weights are worthless.
-  */
-  LogWeights get_log_weights() const
-  {
-    return log_weights;
-  }
-
-  /*! Returns the number of particles beeing simulated */
-  size_t get_particle_count()
-  {
-    return particle_count;
-  }
-
-private:
-  // corrsponding states and weights
-  LogWeights log_weights;
-  States states;
-  // maximum-a-posteriori state;
-  StateType map_state;
-  // state transition and measurement functions
-  PredictFunction predict_fn;
-  LogLikelihoodFunction log_likelihood_fn;
-  // Uniform random number generator
-  UniformRandom uniform_random;
 };
 } // namespace filter_bay

@@ -12,7 +12,7 @@ endif()
 # find dependencies
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
-# Create filter_bay library with interface definitions
+# filter_bay is header only -> INTERFACE lib
 add_library(filter_bay INTERFACE)
 target_include_directories(filter_bay INTERFACE
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
@@ -41,5 +41,5 @@ if(${BUILD_TESTING})
       filter_bay
       pthread)
     gtest_discover_tests(${testname})
-endforeach(sourcefile ${TEST_SRCS})
+  endforeach(sourcefile ${TEST_SRCS})
 endif()
