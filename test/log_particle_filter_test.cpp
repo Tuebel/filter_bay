@@ -4,7 +4,7 @@
 #include <cmath>
 
 // Simple 1D state input & observation
-using MyFilter = filter_bay::LogParticleFilter<10, double, double, double>;
+using MyFilter = filter_bay::LogParticleFilter<double, double, double>;
 const double MEAN = 42;
 const double VARIANCE = 1;
 const double OBSERVATION = 42.5;
@@ -26,13 +26,13 @@ double log_likelihood(const double &state, const double &observation)
 MyFilter create_filter()
 {
   // Create filter
-  return MyFilter();
+  return MyFilter(10);
 }
 
-TEST(ParticleFilterTest, TestInitialization)
+TEST(LogParticleFilterTest, TestInitialization)
 {
   auto filter = create_filter();
-  MyFilter::States states;
+  auto states = filter.get_states();
   double avg_log_weight = log(1.0 / states.size());
   for (size_t i = 0; i < states.size(); i++)
   {
@@ -58,11 +58,11 @@ TEST(ParticleFilterTest, TestInitialization)
   }
 }
 
-TEST(ParticleFilterTest, TestFilterStep)
+TEST(LogParticleFilterTest, TestFilterStep)
 {
 
   auto filter = create_filter();
-  MyFilter::States states;
+  auto states = filter.get_states();
   for (size_t i = 0; i < states.size(); i++)
   {
     states[i] = i;

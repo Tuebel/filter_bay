@@ -4,7 +4,7 @@
 #include <cmath>
 
 // Simple 1D state input & observation
-using MyFilter = filter_bay::ParticleFilter<10, double, double, double>;
+using MyFilter = filter_bay::ParticleFilter<double, double, double>;
 const double MEAN = 42;
 const double VARIANCE = 1;
 const double OBSERVATION = 42.5;
@@ -26,13 +26,13 @@ double likelihood(const double &state, const double &observation)
 MyFilter create_filter()
 {
   // Create filter
-  return MyFilter();
+  return MyFilter(10);
 }
 
 TEST(ParticleFilterTest, TestInitialization)
 {
   auto filter = create_filter();
-  MyFilter::States states;
+  auto states = filter.get_states();
   double avg_weight = 1.0 / states.size();
   for (size_t i = 0; i < states.size(); i++)
   {
@@ -60,9 +60,8 @@ TEST(ParticleFilterTest, TestInitialization)
 
 TEST(ParticleFilterTest, TestFilterStep)
 {
-
   auto filter = create_filter();
-  MyFilter::States states;
+  auto states = filter.get_states();
   for (size_t i = 0; i < states.size(); i++)
   {
     states[i] = i;

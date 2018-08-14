@@ -1,23 +1,22 @@
 #pragma once
 #include <filter_bay/utility/uniform_random.hpp>
-#include <array>
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <vector>
 
 namespace filter_bay
 {
 /*!
 Simple implementation of a particle filter which uses systematic resampling.
 */
-template <size_t particle_count, typename StateType, typename InputType,
-          typename ObservationType>
+template <typename StateType, typename InputType, typename ObservationType>
 class ParticleFilter
 {
 public:
-  using States = typename std::array<StateType, particle_count>;
-  using Weights = typename std::array<double, particle_count>;
-  using Likelihoods = typename std::array<double, particle_count>;
+  using States = typename std::vector<StateType>;
+  using Weights = typename std::vector<double>;
+  using Likelihoods = typename std::vector<double>;
   /*! Predicts the state transition */
   using TransitionFunction = std::function<StateType(const StateType &, const InputType &)>;
   /*! Calculates the likelihood from an observation */
@@ -27,16 +26,28 @@ public:
   using BatchLikelihoodFunction = std::function<Likelihoods(const States &states, const ObservationType &observation)>;
 
   /*!
-  Set the initial belief. Makes sure that the initial weights are distributed
-  uniformally.
+  Create a particle with the given number of particles.
+  */
+  ParticleFilter(size_t particle_count)
+      : weights(particle_count), states(particle_count)
+  {
+    this->particle_count = particle_count;
+  }
+
+  /*!
+  Set the initial belief. Must have the size particle_count. Makes sure that the
+  initial weights are distributed uniformally.
   */
   void initialize(States initial_states)
   {
-    states = std::move(initial_states);
-    double avg_weight = 1.0 / particle_count;
-    for (double &current : weights)
+    if (initial_states.size() == particle_count)
     {
-      current = avg_weight;
+      states = std::move(initial_states);
+      double avg_weight = 1.0 / particle_count;
+      for (double &current : weights)
+      {
+        current = avg_weight;
+      }
     }
   }
 
@@ -60,18 +71,15 @@ public:
   \param z the current observation
   \param likelihood the function to estimate the likelihood for a given state
   and observation
-  \param resample_threshold threshold of the effective sample size(ESS). 
-  Resampling is performed if ESS < resample_threshold. N/2 is a typical value. 
   */
-  void update(const ObservationType &z, const LikelihoodFunction &likelihood,
-              double resample_threshold = particle_count / 2.0)
+  void update(const ObservationType &z, const LikelihoodFunction &likelihood)
   {
-    Likelihoods likelihoods;
+    Likelihoods likelihoods(particle_count);
     for (size_t i = 0; i < particle_count; i++)
     {
       likelihoods[i] = likelihood(states[i], z);
     }
-    update_by_likelihoods(likelihoods, resample_threshold);
+    update_by_likelihoods(likelihoods);
   }
 
   /*!
@@ -80,15 +88,12 @@ public:
   Resampling is performed with the low variance resampling method.
   \param z the current observation
   \param likelihood the function to estimate the likelihood for a given state
-  and observation
-  \param resample_threshold threshold of the effective sample size(ESS). 
-  Resampling is performed if ESS < resample_threshold. N/2 is a typical value. 
+  and observation 
   */
   void update_batch(const ObservationType &z,
-                    const BatchLikelihoodFunction &batch_likelihood,
-                    double resample_threshold = particle_count / 2.0)
+                    const BatchLikelihoodFunction &batch_likelihood)
   {
-    update_by_likelihoods(batch_likelihood(states, z), resample_threshold);
+    update_by_likelihoods(batch_likelihood(states, z));
   }
 
   /*!
@@ -118,15 +123,28 @@ public:
   }
 
   /*! Returns the number of particles beeing simulated */
-  size_t get_particle_count()
+  size_t get_particle_count() const
   {
     return particle_count;
+  }
+
+  /*! 
+  Set the number of simulated particles. The particles are resized and it is
+  advised to call initialize after setting the particle count.
+  */
+  void set_particle_count(size_t count)
+  {
+    particle_count = count;
+    states.resize(particle_count);
+    weights.resize(particle_count);
   }
 
 private:
   // corrsponding states and weights
   Weights weights;
   States states;
+  // parameters
+  size_t particle_count;
   // maximum-a-posteriori state;
   StateType map_state;
   // sample from uniform distribution
@@ -134,11 +152,10 @@ private:
 
   /*!
   Updates the weights, the MAP estimate by given likelihoods.
-  Resamples the particles if the effective sample size is smaller than the
-  threshold
+  Resamples the particles if the effective sample size is smaller than half
+  of the particle count
   */
-  void update_by_likelihoods(const Likelihoods &likelihoods,
-                             double resample_threshold)
+  void update_by_likelihoods(const Likelihoods &likelihoods)
   {
     double weight_sum = 0;
     double max_weight = -std::numeric_limits<double>::infinity();
@@ -163,8 +180,9 @@ private:
       current *= normalize_const;
       square_sum += current * current;
     }
-    // Perform resampling? Calc effective sample size
-    if (1 / square_sum < resample_threshold)
+    // resample if effective sample size is smaller than the half of particcle
+    // count
+    if (1.0 / square_sum < particle_count / 2.0)
     {
       resample_systematic();
     }
