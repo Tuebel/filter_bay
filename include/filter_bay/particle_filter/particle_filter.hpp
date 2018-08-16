@@ -18,7 +18,7 @@ public:
   using Weights = typename std::vector<double>;
   using Likelihoods = typename std::vector<double>;
   /*! Predicts the state transition */
-  using TransitionFunction = std::function<StateType(StateType, const InputType &)>;
+  using TransitionFunction = std::function<StateType(StateType state)>;
   /*! Calculates the likelihood from an observation */
   using LikelihoodFunction = std::function<double(const StateType &state, const ObservationType &observation)>;
   /*! Calculates the likelihoods for a batch of states. Can optimize the
@@ -56,11 +56,11 @@ public:
   \param u the control input
   \param transition the function for an arbitrary state transition.
   */
-  void predict(const InputType &u, const TransitionFunction &transition)
+  void predict(const TransitionFunction &transition)
   {
     for (StateType &current : states)
     {
-      current = transition(current, u);
+      current = transition(current);
     }
   }
 
@@ -72,7 +72,8 @@ public:
   \param likelihood the function to estimate the likelihood for a given state
   and observation
   */
-  void update(const ObservationType &z, const LikelihoodFunction &likelihood)
+  void update(const ObservationType &z,
+              const LikelihoodFunction &likelihood)
   {
     Likelihoods likelihoods(particle_count);
     for (size_t i = 0; i < particle_count; i++)

@@ -26,7 +26,7 @@ public:
   using LogWeights = typename std::vector<double>;
   using LogLikelihoods = typename std::vector<double>;
   /*! Predicts the state transition */
-  using TransitionFunction = std::function<StateType(StateType state, const InputType &input)>;
+  using TransitionFunction = std::function<StateType(StateType state)>;
   /*! Calculates the logarithmic likelihood from an observation */
   using LogLikelihoodFunction = std::function<double(const StateType &state, const ObservationType &observation)>;
   /*! Calculates the likelihoods for a batch of states. Can optimize the
@@ -64,11 +64,11 @@ public:
   Calculates the prediction for every particle without updating the weights.
   \param u the control input
   */
-  void predict(const InputType &u, const TransitionFunction &transition)
+  void predict(const TransitionFunction &transition)
   {
     for (StateType &current : states)
     {
-      current = transition(current, u);
+      current = transition(current);
     }
   }
 

@@ -10,9 +10,9 @@ const double VARIANCE = 1;
 const double OBSERVATION = 42.5;
 
 // For testability a simple transition without noise
-double predict(const double &state, const double &input)
+double predict(const double &state)
 {
-  return state + input;
+  return state + MEAN;
 }
 
 // Probability in [0,1], decreasing with distance = exponential distribution
@@ -69,7 +69,7 @@ TEST(LogParticleFilterTest, TestFilterStep)
   }
   filter.initialize(states);
   // Test prediction
-  filter.predict(MEAN, predict);
+  filter.predict(predict);
   double avg_log_weight = log(1.0 / states.size());
   for (size_t i = 0; i < filter.get_particle_count(); i++)
   {
