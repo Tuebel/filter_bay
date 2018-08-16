@@ -77,7 +77,7 @@ TEST(LogParticleFilterTest, TestFilterStep)
     ASSERT_DOUBLE_EQ(avg_log_weight, filter.get_log_weights()[i]);
   }
   // Test filter step using a gaussian
-  filter_bay::NormalSampler<1> normal_sampler;
+  filter_bay::NormalSampler normal_sampler;
   Eigen::Matrix<double, 1, 1> mean;
   mean << MEAN;
   Eigen::Matrix<double, 1, 1> variance;

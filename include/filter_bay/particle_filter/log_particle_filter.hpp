@@ -26,7 +26,7 @@ public:
   using LogWeights = typename std::vector<double>;
   using LogLikelihoods = typename std::vector<double>;
   /*! Predicts the state transition */
-  using TransitionFunction = std::function<StateType(const StateType &, const InputType &)>;
+  using TransitionFunction = std::function<StateType(StateType state, const InputType &input)>;
   /*! Calculates the logarithmic likelihood from an observation */
   using LogLikelihoodFunction = std::function<double(const StateType &state, const ObservationType &observation)>;
   /*! Calculates the likelihoods for a batch of states. Can optimize the

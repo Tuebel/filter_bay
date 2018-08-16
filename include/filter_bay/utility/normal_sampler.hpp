@@ -10,7 +10,6 @@ namespace filter_bay
 /*!
 Simplifies drawing from a multivariant normal distribution.
 */
-template <int dim>
 class NormalSampler
 {
   // Drawing from multivariate normal distribution:
@@ -18,8 +17,8 @@ class NormalSampler
   // Sample by projecting standard normal distributed values with L, where
   // L L^T = covarianc
 public:
-  typedef Eigen::Matrix<double, dim, dim> MatrixDim;
-  typedef Eigen::Matrix<double, dim, 1> VectorDim;
+  // typedef Eigen::Matrix<double, dim, dim> MatrixDim;
+  // typedef Eigen::Matrix<double, dim, 1> VectorDim;
 
   /*!
   Create the sampler using a random_device to create the seed.
@@ -42,7 +41,10 @@ public:
   \param mean the mean of the distribution
   \param covariance the covariance of the distribution
   */
-  VectorDim sample_robust(const VectorDim &mean, const MatrixDim &covariance)
+  template <typename scalar, int dim>
+  auto sample_robust(const Eigen::Matrix<scalar, dim, 1> &mean,
+                     const Eigen::Matrix<scalar, dim, dim> &covariance)
+      -> Eigen::Matrix<scalar, dim, 1>
   {
     // Use LDLT decomposition which works with semi definite covariances:
     auto ldlt = covariance.ldlt();
@@ -53,7 +55,7 @@ public:
     // Root for diagonal matrix can be calculated element wise
     auto sqrt_D = ldlt.vectorD().cwiseSqrt().asDiagonal();
     auto decomposed = P_T * L * sqrt_D;
-    return sample(mean, decomposed);
+    return sample<scalar, dim>(mean, decomposed);
   }
 
   /*!
@@ -62,10 +64,24 @@ public:
   \param mean the mean of the distribution
   \param covariance the covariance of the distribution
   */
-  VectorDim sample_cholesky(const VectorDim &mean, const MatrixDim &covariance)
+  template <typename scalar, int dim>
+  auto sample_cholesky(const Eigen::Matrix<scalar, dim, 1> &mean,
+                       const Eigen::Matrix<scalar, dim, dim> &covariance)
+      -> Eigen::Matrix<scalar, dim, 1>
   {
     auto decomposed = covariance.llt().matrixL();
-    return sample(mean, decomposed);
+    return sample<scalar, dim>(mean, decomposed);
+  }
+
+  /*!
+  Draws random values from a normal distribution parametrized by the mean and
+  standard deviation (NOT variance as in the covariance matrix version).
+  */
+  template <typename scalar>
+  scalar draw_normal(scalar mean, scalar standard_deviation)
+  {
+    std::normal_distribution<scalar> normal_dist;
+    return normal_dist(uniform_generator) * standard_deviation + mean;
   }
 
 private:
@@ -76,25 +92,29 @@ private:
   /*!
   Samples with the given mean and decomposed covariance matrix.
   */
-  VectorDim sample(const VectorDim &mean, const MatrixDim &decomposed)
+  template <typename scalar, int dim>
+  auto sample(const Eigen::Matrix<scalar, dim, 1> &mean,
+              const Eigen::Matrix<scalar, dim, dim> &decomposed)
+      -> Eigen::Matrix<scalar, dim, 1>
   {
-    auto normal_vec = create_normal_dist_vector();
-    return mean + decomposed * normal_vec;
+    auto norm_dist = create_normal_dist_vector<scalar, dim>();
+    return mean + decomposed * norm_dist;
   }
 
   /*!
   Creates a vector with all elements drawn randlomly from a standard normal
   distribution.
   */
-  Eigen::Matrix<double, dim, 1> create_normal_dist_vector()
+  template <typename scalar, int dim>
+  Eigen::Matrix<scalar, dim, 1> create_normal_dist_vector()
   {
-    std::normal_distribution<> normal_dist;
-    Eigen::Matrix<double, dim, 1> normal_vec;
+    std::normal_distribution<scalar> normal_dist;
+    Eigen::Matrix<scalar, dim, 1> result;
     for (int i = 0; i < dim; i++)
     {
-      normal_vec(i, 0) = normal_dist(uniform_generator);
+      result(i) = normal_dist(uniform_generator);
     }
-    return normal_vec;
+    return result;
   }
 };
 } // namespace filter_bay

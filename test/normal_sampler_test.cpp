@@ -2,11 +2,13 @@
 #include <filter_bay/utility/normal_sampler.hpp>
 #include <gtest/gtest.h>
 
+using Eigen::Matrix2d;
+using Eigen::Vector2d;
 // The more samples are used the better the precision.
 // So for less samples increse EPS
-const int SAMPLES_COUNT = 1000;
+const int SAMPLES_COUNT = 5000;
 const double EPS = 0.1;
-using SamplerType = filter_bay::NormalSampler<2>;
+using SamplerType = filter_bay::NormalSampler;
 // Use the same seed for repeatability of the test
 const unsigned int SEED = 85013;
 
@@ -14,19 +16,18 @@ TEST(NormalSamplerTest, TestRobust)
 {
   // Bootstrap the sampler with const seed for
   SamplerType sampler(SEED);
-  SamplerType::VectorDim mean;
+  Vector2d mean;
   mean << 42.0, 66.6;
-  SamplerType::MatrixDim covariance;
+  Matrix2d covariance;
   covariance << 6.6, 1.3, 1.3, 4.2;
   // Store samples
-
-  std::array<SamplerType::VectorDim, SAMPLES_COUNT> samples;
+  std::array<Vector2d, SAMPLES_COUNT> samples;
   for (int i = 0; i < SAMPLES_COUNT; i++)
   {
     samples[i] = sampler.sample_robust(mean, covariance);
   }
   // Calculate mean of the samples
-  SamplerType::VectorDim new_mean;
+  Vector2d new_mean;
   for (int i = 0; i < SAMPLES_COUNT; i++)
   {
     new_mean(0) += samples[i](0);
@@ -34,7 +35,7 @@ TEST(NormalSamplerTest, TestRobust)
   }
   new_mean = new_mean / SAMPLES_COUNT;
   // Calculate covariance of the samples
-  SamplerType::MatrixDim new_covariance;
+  Matrix2d new_covariance;
   for (int i = 0; i < SAMPLES_COUNT; i++)
   {
     for (int r = 0; r < 2; r++)
@@ -58,19 +59,19 @@ TEST(NormalSamplerTest, TestCholesky)
 {
   // Bootstrap the sampler
   SamplerType sampler(SEED);
-  SamplerType::VectorDim mean;
+  Vector2d mean;
   mean << 42.0, 66.6;
-  SamplerType::MatrixDim covariance;
+  Matrix2d covariance;
   covariance << 6.6, 1.3, 1.3, 4.2;
   // Store samples
 
-  std::array<SamplerType::VectorDim, SAMPLES_COUNT> samples;
+  std::array<Vector2d, SAMPLES_COUNT> samples;
   for (int i = 0; i < SAMPLES_COUNT; i++)
   {
     samples[i] = sampler.sample_cholesky(mean, covariance);
   }
   // Calculate mean of the samples
-  SamplerType::VectorDim new_mean;
+  Vector2d new_mean;
   for (int i = 0; i < SAMPLES_COUNT; i++)
   {
     new_mean(0) += samples[i](0);
@@ -78,7 +79,7 @@ TEST(NormalSamplerTest, TestCholesky)
   }
   new_mean = new_mean / SAMPLES_COUNT;
   // Calculate covariance of the samples
-  SamplerType::MatrixDim new_covariance;
+  Matrix2d new_covariance;
   for (int i = 0; i < SAMPLES_COUNT; i++)
   {
     for (int r = 0; r < 2; r++)
@@ -96,6 +97,29 @@ TEST(NormalSamplerTest, TestCholesky)
                                             << new_mean << "\n";
   ASSERT_TRUE(covariance.isApprox(new_covariance, EPS)) << covariance << "\n\n"
                                                         << new_covariance << "\n";
+}
+
+TEST(NormalSamplerTest, TestScalar)
+{
+  // Bootstrap the sampler
+  SamplerType sampler(SEED);
+  const double MEAN = 42;
+  const double STANDARD_DEVIATION = 2.5;
+  const double VARIANCE = STANDARD_DEVIATION * STANDARD_DEVIATION;
+  std::array<double, SAMPLES_COUNT> samples;
+  for (auto &current : samples)
+  {
+    current = sampler.draw_normal(MEAN, STANDARD_DEVIATION);
+  }
+  double new_mean = 0;
+  double new_variance = 0;
+  for (auto current : samples)
+  {
+    new_mean += current / SAMPLES_COUNT;
+    new_variance += (current - MEAN) * (current - MEAN) / SAMPLES_COUNT;
+  }
+  ASSERT_NEAR(MEAN, new_mean, EPS);
+  ASSERT_NEAR(VARIANCE, new_variance, EPS);
 }
 
 int main(int argc, char **argv)

@@ -18,7 +18,7 @@ public:
   using Weights = typename std::vector<double>;
   using Likelihoods = typename std::vector<double>;
   /*! Predicts the state transition */
-  using TransitionFunction = std::function<StateType(const StateType &, const InputType &)>;
+  using TransitionFunction = std::function<StateType(StateType, const InputType &)>;
   /*! Calculates the likelihood from an observation */
   using LikelihoodFunction = std::function<double(const StateType &state, const ObservationType &observation)>;
   /*! Calculates the likelihoods for a batch of states. Can optimize the
