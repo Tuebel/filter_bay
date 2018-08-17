@@ -26,12 +26,9 @@ public:
   using LogWeights = typename std::vector<double>;
   using LogLikelihoods = typename std::vector<double>;
   /*! Predicts the state transition */
-  using TransitionFunction = std::function<StateType(StateType state)>;
+  using TransitionFunction = std::function<StateType(const StateType &state)>;
   /*! Calculates the logarithmic likelihood from an observation */
   using LogLikelihoodFunction = std::function<double(const StateType &state, const ObservationType &observation)>;
-  /*! Calculates the likelihoods for a batch of states. Can optimize the
-  calculating for limited resources, async calculations, etc. */
-  using BatchLogLikelihoodFunction = std::function<LogLikelihoods(const States &states, const ObservationType &observation)>;
 
   /*!
   Create a logarithmic particle with the given number of particles.
@@ -96,14 +93,32 @@ public:
   Updates the particle weights by incorporating the observation as a batch.
   The update step is done in a SIR bootstrap filter fashion.
   Resampling is performed with the low variance resampling method.
-  \param z the current observation
-  \param likelihood the function to estimate the likelihood for a given state
-  and observation
+  \param log_likelihoods the logarithmic likelihoods for all the states (in the 
+  same order as these states)
   */
-  void update_batch(const ObservationType &z,
-                    const BatchLogLikelihoodFunction &batch_log_likelihood)
+  void update_by_likelihoods(const LogLikelihoods &log_likelihoods)
   {
-    update_by_likelihoods(batch_log_likelihood(states, z));
+    double max_weight = -std::numeric_limits<double>::infinity();
+    // weights as posterior of observation, prior is proposal density
+    for (size_t i = 0; i < particle_count; i++)
+    {
+      // log(weight*likelihood) = log(weight) + log_likelihood
+      log_weights[i] += log_likelihoods[i];
+      // check for MAP here, after resampling the weights are all equal
+      if (log_weights[i] > max_weight)
+      {
+        map_state = states[i];
+        max_weight = log_weights[i];
+      }
+    }
+    // Normalize weights
+    log_weights = normalized_logs(log_weights);
+    // Perform resampling? Effective sample_size < half of particle count
+    double log_resample_threshold = std::log(particle_count / 2.0);
+    if (ess_log(log_weights) < log_resample_threshold)
+    {
+      resample_systematic();
+    }
   }
 
   /*!
@@ -118,7 +133,7 @@ public:
   Returns the state of the particles. Use get_log_weights to obtain the full
   belief.
   */
-  States get_states() const
+  const States &get_states() const
   {
     return states;
   }
@@ -128,7 +143,7 @@ public:
   full belief.
   Warning: after resampling the weights are worthless.
   */
-  LogWeights get_log_weights() const
+  const LogWeights &get_log_weights() const
   {
     return log_weights;
   }
@@ -160,36 +175,6 @@ private:
   StateType map_state;
   // Uniform random number generator
   UniformRandom uniform_random;
-
-  /*!
-  Updates the weights, the MAP estimate by given likelihoods.
-  Resamples the particles if the effective sample size is smaller than the
-  threshold
-  */
-  void update_by_likelihoods(const LogLikelihoods &log_likelihoods)
-  {
-    double max_weight = -std::numeric_limits<double>::infinity();
-    // weights as posterior of observation, prior is proposal density
-    for (size_t i = 0; i < particle_count; i++)
-    {
-      // log(weight*likelihood) = log(weight) + log_likelihood
-      log_weights[i] += log_likelihoods[i];
-      // check for MAP here, after resampling the weights are all equal
-      if (log_weights[i] > max_weight)
-      {
-        map_state = states[i];
-        max_weight = log_weights[i];
-      }
-    }
-    // Normalize weights
-    log_weights = normalized_logs(log_weights);
-    // Perform resampling? Effective sample_size < half of particle count
-    double log_resample_threshold = std::log(particle_count / 2.0);
-    if (ess_log(log_weights) < log_resample_threshold)
-    {
-      resample_systematic();
-    }
-  }
 
   /*!
   Sampling systematically and thus keeping the sample variance lower than pure

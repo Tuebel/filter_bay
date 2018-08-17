@@ -18,12 +18,9 @@ public:
   using Weights = typename std::vector<double>;
   using Likelihoods = typename std::vector<double>;
   /*! Predicts the state transition */
-  using TransitionFunction = std::function<StateType(StateType state)>;
+  using TransitionFunction = std::function<StateType(const StateType& state)>;
   /*! Calculates the likelihood from an observation */
   using LikelihoodFunction = std::function<double(const StateType &state, const ObservationType &observation)>;
-  /*! Calculates the likelihoods for a batch of states. Can optimize the
-  calculating for limited resources, async calculations, etc. */
-  using BatchLikelihoodFunction = std::function<Likelihoods(const States &states, const ObservationType &observation)>;
 
   /*!
   Create a particle with the given number of particles.
@@ -87,74 +84,8 @@ public:
   Updates the particle weights by incorporating the observation as a batch.
   The update step is done in a SIR bootstrap filter fashion.
   Resampling is performed with the low variance resampling method.
-  \param z the current observation
-  \param likelihood the function to estimate the likelihood for a given state
-  and observation 
-  */
-  void update_batch(const ObservationType &z,
-                    const BatchLikelihoodFunction &batch_likelihood)
-  {
-    update_by_likelihoods(batch_likelihood(states, z));
-  }
-
-  /*!
-  Returns the maximum-a-posteriori state from the last update step.
-  */
-  StateType get_map_state() const
-  {
-    return map_state;
-  }
-
-  /*! 
-  Returns the state of the particles. Use get_weights to obtain the full belief.
-  */
-  States get_states() const
-  {
-    return states;
-  }
-
-  /*! 
-  Returns the weights of the particles. Use get_states to obtain the full
-  belief.
-  Warning: after resampling the weights are worthless.
-  */
-  Weights get_weights() const
-  {
-    return weights;
-  }
-
-  /*! Returns the number of particles beeing simulated */
-  size_t get_particle_count() const
-  {
-    return particle_count;
-  }
-
-  /*! 
-  Set the number of simulated particles. The particles are resized and it is
-  advised to call initialize after setting the particle count.
-  */
-  void set_particle_count(size_t count)
-  {
-    particle_count = count;
-    states.resize(particle_count);
-    weights.resize(particle_count);
-  }
-
-private:
-  // corrsponding states and weights
-  Weights weights;
-  States states;
-  // parameters
-  size_t particle_count;
-  // maximum-a-posteriori state;
-  StateType map_state;
-  // sample from uniform distribution
-  UniformRandom uniform_random;
-
-  /*!
-  Updates the weights, the MAP estimate by given likelihoods.
-  Resamples the particles if the effective sample size is smaller than half
-  of the particle count
+  \param log_likelihoods the logarithmic likelihoods for all the states (in the 
+  same order as these states)
   */
   void update_by_likelihoods(const Likelihoods &likelihoods)
   {
@@ -188,6 +119,60 @@ private:
       resample_systematic();
     }
   }
+
+  /*!
+  Returns the maximum-a-posteriori state from the last update step.
+  */
+  StateType get_map_state() const
+  {
+    return map_state;
+  }
+
+  /*! 
+  Returns the state of the particles. Use get_weights to obtain the full belief.
+  */
+  const States &get_states() const
+  {
+    return states;
+  }
+
+  /*! 
+  Returns the weights of the particles. Use get_states to obtain the full
+  belief.
+  Warning: after resampling the weights are worthless.
+  */
+  const Weights &get_weights() const
+  {
+    return weights;
+  }
+
+  /*! Returns the number of particles beeing simulated */
+  size_t get_particle_count() const
+  {
+    return particle_count;
+  }
+
+  /*! 
+  Set the number of simulated particles. The particles are resized and it is
+  advised to call initialize after setting the particle count.
+  */
+  void set_particle_count(size_t count)
+  {
+    particle_count = count;
+    states.resize(particle_count);
+    weights.resize(particle_count);
+  }
+
+private:
+  // corrsponding states and weights
+  Weights weights;
+  States states;
+  // parameters
+  size_t particle_count;
+  // maximum-a-posteriori state;
+  StateType map_state;
+  // sample from uniform distribution
+  UniformRandom uniform_random;
 
   /*!
   Sampling systematically and thus keeping the sample variance lower than pure
