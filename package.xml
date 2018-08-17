@@ -13,6 +13,7 @@
   <license>MIT</license>
   <author email="tim.uebelhoer@rwth-aachen.de">Tim Übelhör</author>
 
+  <doc_depend>doxygen</doc_depend>
   <buildtool_depend>cmake</buildtool_depend>
   <test_depend>GTest</test_depend>
   <doc_depend>doxygen</doc_depend>
