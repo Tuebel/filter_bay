@@ -1,0 +1,11 @@
+get_filename_component(FILTER_BAY_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+set(FILER_BAY_INCLUDE_DIRS "@CONF_INCLUDE_DIRS@")
+
+include(CMakeFindDependencyMacro)
+find_dependency(Eigen3 3.3 REQUIRED NO_MODULE)
+
+if(NOT TARGET filter_bay)
+  include(${CMAKE_CURRENT_LIST_DIR}/filter_bay_targets.cmake)
+endif()
+
+set(FILTER_BAY_LIBRARIES filter_bay)

@@ -15,16 +15,49 @@ find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 # filter_bay is header only -> INTERFACE lib
 add_library(filter_bay INTERFACE)
 target_include_directories(filter_bay INTERFACE
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
-target_link_libraries(filter_bay INTERFACE Eigen3::Eigen)
+target_sources(filter_bay INTERFACE
+  INTERFACE $<BUILD_INTERFACE:
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/filter_bay/kalman_filter/kalman_filter.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/filter_bay/model/depth_observation_model.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/filter_bay/model/gaussian_observation_model.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/filter_bay/model/linear_transition_model.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/filter_bay/model/movement_state.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/filter_bay/particle_filter/log_particle_filter.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/filter_bay/particle_filter/particle_filter.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/filter_bay/tracker/impedance_tracker.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/filter_bay/utility/log_arithmetics.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/filter_bay/utility/normal_sampler.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/filter_bay/utility/uniform_random.hpp>)
+target_link_libraries(filter_bay INTERFACE 
+  Eigen3::Eigen)
 
-# installation
-install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ DESTINATION include)
-install(FILES filter_bay-config.cmake DESTINATION lib/filter_bay/)
-install(TARGETS filter_bay DESTINATION lib EXPORT filter_bay_targets)
-install(EXPORT filter_bay_targets DESTINATION lib/filter_bay)
-export(TARGETS filter_bay FILE filter_bay_exports.cmake)
+# install target
+install(DIRECTORY include/filter_bay DESTINATION include)
+install(TARGETS filter_bay
+  EXPORT filter_bay_targets)
+# versioning
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+  filter_bayConfigVersion.cmake
+  VERSION 0.1
+  COMPATIBILITY AnyNewerVersion)
+# for find_package support
+install(EXPORT filter_bay_targets
+  FILE filter_bay_targets.cmake
+  NAMESPACE filter_bay::
+  DESTINATION lib/cmake/filter_bay)
+configure_file(filter_bayConfig.cmake.in filter_bayConfig.cmake @ONLY)
+install(FILES 
+  "${CMAKE_CURRENT_BINARY_DIR}/filter_bayConfig.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/filter_bayConfigVersion.cmake"
+  DESTINATION lib/cmake/filter_bay)
+# export for source tree
+export(TARGETS filter_bay
+  NAMESPACE filter_bay::
+  FILE filter_bay_targets.cmake)
+export(PACKAGE filter_bay)
 
 # testing
 include(CTest)
