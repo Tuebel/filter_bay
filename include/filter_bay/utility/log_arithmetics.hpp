@@ -84,7 +84,7 @@ inline std::vector<double> normalized_logs(std::vector<double> log_values)
 Calculates the logarithmic effective sample size.
 \param norm_log_weights the normalized log weights
 */
-inline double ess_log(std::vector<double> norm_log_weights)
+inline double log_effective_samples(std::vector<double> norm_log_weights)
 {
   for (double &current : norm_log_weights)
   {
@@ -100,7 +100,7 @@ Calculates the logarithmic effective sample size.
 \param norm_log_weights the normalized log weights
 */
 template <size_t N>
-inline double ess_log(std::array<double, N> norm_log_weights)
+inline double log_effective_samples(std::array<double, N> norm_log_weights)
 {
   for (double &current : norm_log_weights)
   {

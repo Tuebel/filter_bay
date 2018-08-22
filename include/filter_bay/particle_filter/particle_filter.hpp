@@ -18,7 +18,7 @@ public:
   using Weights = typename std::vector<double>;
   using Likelihoods = typename std::vector<double>;
   /*! Predicts the state transition */
-  using TransitionFunction = std::function<StateType(const StateType& state)>;
+  using TransitionFunction = std::function<StateType(const StateType &state)>;
   /*! Calculates the likelihood from an observation */
   using LikelihoodFunction = std::function<double(const StateType &state, const ObservationType &observation)>;
 
@@ -106,15 +106,13 @@ public:
     }
     // Normalize weights
     double normalize_const = 1 / weight_sum;
-    double square_sum = 0;
     for (auto &current : weights)
     {
       current *= normalize_const;
-      square_sum += current * current;
     }
     // resample if effective sample size is smaller than the half of particcle
     // count
-    if (1.0 / square_sum < particle_count / 2.0)
+    if (effective_sample_size() < particle_count / 2.0)
     {
       resample_systematic();
     }
@@ -126,6 +124,19 @@ public:
   StateType get_map_state() const
   {
     return map_state;
+  }
+
+  /*!
+  Returns the effective sample size.
+  */
+  double effective_sample_size() const
+  {
+    double sum_of_squares = 0;
+    for (double value : weights)
+    {
+      sum_of_squares += value * value;
+    }
+    return 1.0 / sum_of_squares;
   }
 
   /*! 
