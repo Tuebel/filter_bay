@@ -115,7 +115,7 @@ public:
     log_weights = normalized_logs(log_weights);
     // Perform resampling? Effective sample_size < half of particle count
     double log_resample_threshold = std::log(particle_count / 2.0);
-    if (effective_sample_size() < log_resample_threshold)
+    if (log_effective_sample_size() < log_resample_threshold)
     {
       resample_systematic();
     }
@@ -130,11 +130,11 @@ public:
   }
 
   /*!
-  Returns the effective sample size
+  Returns the logarithmic effective sample size
   */
-  double effective_sample_size() const
+  double log_effective_sample_size() const
   {
-    return std::exp(log_effective_samples(log_weights));
+    return log_effective_samples(log_weights);
   }
 
   /*! 

@@ -71,10 +71,11 @@ norm_val = val - normalization_const . Instead of norm_val = val / norm_const
 */
 inline std::vector<double> normalized_logs(std::vector<double> log_values)
 {
+  // log(X) where X is the sum over all x
   double norm_const = log_sum_exp(log_values);
   for (double &value : log_values)
   {
-    // log(x/N) = log(x) - log(N)
+    // log(x/X) = log(x) - log(X)
     value -= norm_const;
   }
   return log_values;
